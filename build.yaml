@@ -1,0 +1,53 @@
+
+name: Build ResolveHQ for Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[build]"
+
+      - name: Run tests
+        run: |
+          python -m unittest test_e2e.py -v
+
+      - name: Build ResolveHQ application
+        run: |
+          pyinstaller --noconfirm --clean --windowed --onefile --name ResolveHQ --collect-submodules pynput --collect-submodules mss resolvehq/app.py
+
+      - name: Build ResolveHQ relay
+        run: |
+          pyinstaller --noconfirm --clean --console --onefile --name ResolveHQ-Relay resolvehq/relay.py
+
+      - name: Upload Windows executables
+        uses: actions/upload-artifact@v5
+        with:
+          name: ResolveHQ-Windows
+          path: |
+            dist/ResolveHQ.exe
+            dist/ResolveHQ-Relay.exe
+          if-no-files-found: error
+          retention-days: 30
